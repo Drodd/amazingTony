@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const barberHeight = originalSizes.barber.height * scale;
         // 理发师位于背景图底部居中
         const barberLeft = bgLeft + (scaledBgWidth - barberWidth) / 3;
-        const barberTop = bgTop + scaledBgHeight - barberHeight - (scaledBgHeight * 0);
+        const barberTop = bgTop + scaledBgHeight - barberHeight - (scaledBgHeight * 0.02);
         
         barber.style.width = `${barberWidth}px`;
         barber.style.height = `${barberHeight}px`;
@@ -361,9 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 调整思考气泡位置和大小
         const thoughtBubble = document.querySelector('.thought-bubble');
         thoughtBubble.style.padding = `${25 * scale}px`;
-        thoughtBubble.style.borderRadius = `${100 * scale}%`;
+        thoughtBubble.style.borderRadius = `${200 * scale}%`;
         thoughtBubble.style.top = `${bgTop + scaledBgHeight * 0.06}px`;
-        thoughtBubble.style.left = `${bgLeft + scaledBgWidth * 0.48}px`;
+        thoughtBubble.style.left = `${bgLeft + scaledBgWidth * 0.45}px`;
         
         // 调整发型导航按钮大小
         const hairNavButtons = document.querySelectorAll('.hair-nav-button');
