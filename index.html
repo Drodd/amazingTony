@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>剪刀手托尼</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 首页 -->
+    <div id="start-page" class="full-page">
+        <div class="start-content">
+            <h1>剪刀手托尼</h1>
+            <div class="icon-decoration">
+                <span class="scissors-icon">✂️</span>
+            </div>
+            <div class="game-rules">
+                <h2>游戏规则</h2>
+                <ul>
+                    <li>你是传说中的理发师——Tony</li>
+                    <li>只听顾客一句话，你就知道她想要什么发型</li>
+                    <li>你的字典里没有「失手」两个字</li>
+                    <li>每日营业时间：12:00-21:00</li>
+                </ul>
+            </div>
+            <button id="start-game-btn" class="main-btn">开始游戏</button>
+            <div id="loading-status" class="loading-status hidden">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">加载游戏中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <!-- 游戏时间显示 -->
+        <div id="game-time">
+            <div class="current-time">
+                <span id="time-display">12:00</span>
+            </div>
+            <div class="end-time">
+                <span>营业至21:00</span>
+            </div>
+        </div>
+
+        <div id="game-scene">
+            <!-- 背景图层 -->
+            <img id="bg" src="img/img_bg.png" alt="背景">
+            
+            <!-- 理发师图层 -->
+            <img id="barber" src="img/img_baber.png" alt="理发师">
+            
+            <!-- 客人图层 -->
+            <div id="customer-container">
+                <img id="customer" src="img/img_customer.png" alt="客人">
+                <!-- 发型图层 -->
+                <img id="hair" src="img/img_hair1.png" alt="发型">
+            </div>
+            
+            <!-- 装饰框图层 -->
+            <img id="frame" src="img/img_frame.png" alt="装饰框">
+
+            <!-- 客户需求气泡 -->
+            <div id="customer-request" class="speech-bubble speech-bubble-top">
+                <div class="bubble-content">
+                    <p id="request-text">最近太忙了，一直没空来，请帮我「修剪一下」</p>
+                </div>
+            </div>
+
+            <!-- 客户结算反馈 -->
+            <div id="customer-feedback" class="speech-bubble speech-bubble-top hidden">
+                <div class="bubble-content">
+                    <p id="feedback-text"></p>
+                </div>
+            </div>
+
+            <!-- 发型思考区 -->
+            <div id="hair-selection">
+                <div class="thought-bubble">
+                    <div class="hair-selector">
+                        <button id="prev-hair" class="hair-nav-button">&lt;</button>
+                        <div class="displayed-hair-container">
+                            <img id="displayed-hair" src="img/img_hair1.png" alt="发型选择">
+                        </div>
+                        <button id="next-hair" class="hair-nav-button">&gt;</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div id="game-controls">
+                <button id="next-customer">开 剪！</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结算窗口 -->
+    <div id="end-day-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>营业结束</h2>
+                <div class="decoration-line"></div>
+            </div>
+            <div class="summary">
+                <div class="summary-item">
+                    <div class="summary-label">今日满意客人</div>
+                    <div class="summary-value"><span id="satisfied-customers">0</span> 位</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">今日收入</div>
+                    <div class="summary-value"><span id="total-income">0</span> 元</div>
+                </div>
+            </div>
+            <button id="next-day-btn" class="main-btn">下一天</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

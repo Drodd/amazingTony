@@ -1,0 +1,736 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    background-color: #f0f0f0;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    transition: opacity 0.5s ease;
+}
+
+#game-scene {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* 各个图层的基本样式 */
+#bg, #barber, #customer, #hair, #frame {
+    position: absolute;
+    pointer-events: none; /* 让点击事件穿透图片 */
+}
+
+#bg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* 改为contain确保图片完全显示不超出 */
+    max-width: 100%;
+    max-height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+}
+
+#barber {
+    z-index: 2;
+}
+
+/* 客人容器 - 用于动画 */
+#customer-container {
+    position: absolute;
+    z-index: 3;
+    transition: transform 0.8s ease-in-out;
+}
+
+#customer {
+    position: relative;
+    z-index: 3;
+}
+
+#hair {
+    position: absolute;
+    z-index: 4;
+}
+
+#frame {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* 同样修改装饰框为contain */
+    max-width: 100%;
+    max-height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+}
+
+/* 滑入动画 */
+@keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); }
+    to { transform: translateX(100%); }
+}
+
+/* 遮罩动画 - 缩放+晃动，增强频率 */
+@keyframes maskAnimation {
+    0% { transform: scale(1) rotate(0deg); }
+    20% { transform: scale(1.08) rotate(3deg); }
+    40% { transform: scale(1.12) rotate(-2deg); }
+    60% { transform: scale(1.08) rotate(3deg); }
+    80% { transform: scale(1.12) rotate(-2deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+/* 理发师上下震动动画 */
+@keyframes barberShake {
+    0% { transform: translateY(0); }
+    25% { transform: translateY(-5px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(5px); }
+    100% { transform: translateY(0); }
+}
+
+.barber-cutting {
+    animation: barberShake 0.3s ease-in-out infinite;
+}
+
+.slide-in {
+    animation: slideIn 0.8s forwards;
+}
+
+.slide-out {
+    animation: slideOut 0.8s forwards;
+}
+
+/* 遮罩图片样式 */
+#mask {
+    position: absolute;
+    pointer-events: none;
+    transform-origin: center;
+    z-index: 10; /* 使用更高的z-index值，确保在hair层(4)的上方，但在控制层(10)的下方 */
+}
+
+/* 游戏控制按钮 */
+#game-controls {
+    position: absolute;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    z-index: 10;
+    background-color: rgba(255, 255, 255, 0);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0);
+}
+
+#next-customer {
+    font-weight: bold;
+    background-color:  #4c2222;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.2s;
+    display: block; /* 确保按钮显示 */
+}
+
+/* 当游戏控制容器被隐藏时，确保其子元素也隐藏 */
+#game-controls.hidden #next-customer {
+    display: none !important;
+}
+
+#next-customer:hover {
+    background-color:  #4c2222;
+    transform: scale(1.05);
+}
+
+#next-customer:active {
+    transform: scale(0.95);
+}
+
+/* 气泡入场动画 */
+@keyframes bubbleIn {
+    0% { 
+        opacity: 0;
+        transform: translateX(-50%) scale(0.7); 
+    }
+    70% { 
+        opacity: 1;
+        transform: translateX(-50%) scale(1.05); 
+    }
+    100% { 
+        opacity: 1;
+        transform: translateX(-50%) scale(1); 
+    }
+}
+
+.bubble-in {
+    animation: bubbleIn 0.5s forwards;
+}
+
+/* 对话气泡通用样式 */
+.speech-bubble {
+    position: absolute;
+    transform: translateX(-50%);
+    background-color: rgba(255, 255, 255, 1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    border: 3px solid  #4c2222;
+    white-space: normal;
+    word-wrap: break-word;
+    opacity: 0; /* 默认隐藏 */
+}
+
+/* 气泡内容容器 */
+.bubble-content {
+    width: 100%;
+    overflow: hidden;
+}
+
+/* 气泡朝上的样式 */
+.speech-bubble-top:after {
+    content: '';
+    position: absolute;
+    top: -15px;
+    left: 68%;
+    transform: translateX(-50%);
+    border-width: 0 15px 15px;
+    border-style: solid;
+    border-color: transparent transparent #4c2222;;
+}
+
+.speech-bubble p {
+    margin: 0;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+}
+
+/* 隐藏元素 */
+.hidden {
+    display: none !important;
+}
+
+/* 思考气泡呼吸动画 */
+@keyframes thoughtBubbleBreath {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}
+
+.thought-bubble-breathing {
+    animation: thoughtBubbleBreath 1s ease-in-out infinite;
+}
+
+/* 思考气泡 */
+.thought-bubble {
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    border: 3px solid  #4c2222;
+    transform-origin: center; /* 移到这里确保所有变换都有相同的原点 */
+}
+
+/* 发型选择容器 */
+#hair-selection {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 6;
+    pointer-events: none;
+}
+
+/* 发型选择器 */
+.hair-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    pointer-events: auto;
+}
+
+.displayed-hair-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0);
+    border-radius: 10px;
+}
+
+#displayed-hair {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.hair-nav-button {
+    border-radius: 50%;
+    border: 2px solid  #4c2222;
+    background-color: #d9a066;
+    color: #333;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.hair-nav-button:hover {
+    background-color: #d9a066;
+    color: white;
+    transform: scale(1.1);
+}
+
+/* 正反馈点头动画 */
+@keyframes positiveFeedbackNod {
+    0% { transform: translateY(0); }
+    25% { transform: translateY(10px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(10px); }
+    100% { transform: translateY(0); }
+}
+
+/* 发型向下点头动画（只向下移动） */
+@keyframes hairPositiveFeedbackNod {
+    0% { transform: translateY(0); }
+    25% { transform: translateY(10px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(10px); }
+    100% { transform: translateY(0); }
+}
+
+/* 负反馈左右晃动动画 */
+@keyframes negativeFeedbackShake {
+    0% { transform: translateX(0); }
+    10% { transform: translateX(-10px); }
+    20% { transform: translateX(10px); }
+    30% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    50% { transform: translateX(-5px); }
+    60% { transform: translateX(5px); }
+    70% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
+    90% { transform: translateX(-1px); }
+    100% { transform: translateX(0); }
+}
+
+.positive-feedback {
+    animation: positiveFeedbackNod 0.5s ease;
+}
+
+.hair-positive-feedback {
+    animation: hairPositiveFeedbackNod 0.5s ease;
+}
+
+.negative-feedback {
+    animation: negativeFeedbackShake 0.5s ease;
+}
+
+/* 首页样式 */
+.full-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.5); /* 添加半透明背景作为备选 */
+    overflow: hidden; /* 防止内容溢出 */
+}
+
+/* 毛玻璃背景效果 */
+.full-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); /* Safari支持 */
+    z-index: -1;
+}
+
+.start-content {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 20px;
+    padding: 40px;
+    width: 80%;
+    max-width: 600px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transform: translateY(0);
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+.start-content h1 {
+    color: #4c2222;
+    font-size: 42px;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.game-rules {
+    text-align: left;
+    margin: 25px 0;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.6);
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1) inset;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.game-rules h2 {
+    color: #555;
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.game-rules ul {
+    padding-left: 20px;
+}
+
+.game-rules li {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.main-btn {
+    background-color: #4c2222;
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.main-btn::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background: linear-gradient(45deg, #4c2222, #aa6161, #4c2222);
+    background-size: 200% 200%;
+    opacity: 0;
+    z-index: -1;
+    transition: opacity 0.3s ease;
+    animation: gradientBG 3s ease infinite;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.main-btn:hover {
+    background-color: #5d2a2a;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.main-btn:hover::before {
+    opacity: 1;
+}
+
+.main-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* 游戏时间样式 */
+#game-time {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: rgb(30, 14, 8);
+    padding: 0px;
+    border-radius: 0px;
+    font-weight: bold;
+    z-index: 100;
+    min-width: 150px;
+    text-align: left;
+    transform: translate(0, 0); /* 初始值，会在JavaScript中根据背景图位置动态调整 */
+}
+
+.current-time {
+    margin-bottom: 5px;
+}
+
+#time-display {
+    font-size: 48px;
+    color: #4c2222;
+}
+
+.end-time {
+    font-size: 14px;
+    color: #4c2222;
+    margin-top: -15px;
+}
+
+/* 结算窗口样式 */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* 结算窗口毛玻璃背景 */
+.modal::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: -1;
+}
+
+.modal-content {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 20px;
+    padding: 40px;
+    width: 85%;
+    max-width: 550px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    text-align: center;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    transform: scale(0.9);
+    animation: popup 0.5s forwards, float 4s ease-in-out infinite 0.5s;
+}
+
+@keyframes popup {
+    0% { transform: scale(0.5); opacity: 0; }
+    70% { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.modal-content h2 {
+    color: #4c2222;
+    font-size: 38px;
+    margin-bottom: 25px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    display: inline-block;
+}
+
+.modal-content h2::after {
+    content: none;
+}
+
+.summary {
+    margin: 35px 0;
+    font-size: 22px;
+    background-color: rgba(255, 255, 255, 0.6);
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1) inset;
+}
+
+.summary p {
+    margin: 15px 0;
+    position: relative;
+    display: inline-block;
+    padding: 5px 15px;
+}
+
+#satisfied-customers,
+#total-income {
+    color: #e74c3c;
+    font-weight: bold;
+    font-size: 32px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    animation: highlight 1.5s ease-in-out;
+}
+
+@keyframes highlight {
+    0% { transform: scale(0.5); opacity: 0; }
+    50% { transform: scale(1.5); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .start-content,
+    .modal-content {
+        width: 90%;
+        padding: 25px;
+    }
+    
+    .start-content h1 {
+        font-size: 32px;
+    }
+    
+    .modal-content h2 {
+        font-size: 28px;
+    }
+    
+    .game-rules h2 {
+        font-size: 22px;
+    }
+    
+    .game-rules li,
+    .summary p {
+        font-size: 16px;
+    }
+    
+    .summary {
+        padding: 15px;
+        margin: 20px 0;
+    }
+    
+    #satisfied-customers,
+    #total-income {
+        font-size: 26px;
+    }
+    
+    .main-btn {
+        padding: 12px 30px;
+        font-size: 16px;
+    }
+}
+
+/* 首页剪刀图标装饰 */
+.icon-decoration {
+    margin: 10px auto 20px;
+    position: relative;
+}
+
+.scissors-icon {
+    font-size: 36px;
+    display: inline-block;
+    position: relative;
+    animation: rotate 4s ease-in-out infinite;
+}
+
+@keyframes rotate {
+    0% { transform: rotate(0deg); }
+    30% { transform: rotate(-30deg); }
+    60% { transform: rotate(30deg); }
+    100% { transform: rotate(0deg); }
+}
+
+/* 结算窗口头部 */
+.modal-header {
+    position: relative;
+    margin-bottom: 25px;
+}
+
+.decoration-line {
+    width: 60%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #4c2222, transparent);
+    margin: 10px auto 0;
+}
+
+/* 结算内容区域新样式 */
+.summary-item {
+    margin: 20px 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.summary-item:hover {
+    transform: translateY(-3px);
+}
+
+.summary-label {
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 5px;
+}
+
+.summary-value {
+    font-size: 26px;
+    font-weight: bold;
+    color: #4c2222;
+}
+
+/* 加载状态 */
+.loading-status {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 5px solid rgba(76, 34, 34, 0.2);
+    border-top: 5px solid #4c2222;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+.loading-text {
+    color: #4c2222;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
