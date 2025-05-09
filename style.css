@@ -66,7 +66,9 @@ body {
 #customer-container {
     position: absolute;
     z-index: 3;
-    transition: transform 0.8s ease-in-out;
+    transition: transform 0.8s ease-in-out, opacity 0.3s ease;
+    opacity: 0; /* 初始不可见，避免在游戏加载时闪现 */
+    transform: translateX(100%); /* 初始位置在屏幕外 */
 }
 
 #customer {
@@ -94,7 +96,7 @@ body {
 /* 滑入动画 */
 @keyframes slideIn {
     from { transform: translateX(100%); }
-    to { transform: translateX(0); }
+    to { transform: translateX(0); } /* 明确定义最终位置为0 */
 }
 
 @keyframes slideOut {
@@ -126,11 +128,13 @@ body {
 }
 
 .slide-in {
-    animation: slideIn 0.8s forwards;
+    animation: slideIn 0.8s forwards; /* forwards确保保持动画结束后的状态 */
+    transform: translateX(0); /* 显式设置最终位置 */
 }
 
 .slide-out {
-    animation: slideOut 0.8s forwards;
+    animation: slideOut 0.4s forwards; /* forwards确保保持动画结束后的状态 */
+    transform: translateX(100%); /* 显式设置最终位置 */
 }
 
 /* 遮罩图片样式 */

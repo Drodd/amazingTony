@@ -677,21 +677,41 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 500);
         }
         
-        // 1秒后隐藏反馈，生成新客人或结束游戏
+        // 1.5秒后隐藏反馈，生成新客人或结束游戏（原来是1秒）
         setTimeout(() => {
             customerFeedback.classList.remove('bubble-in');
             hideUIElement(customerFeedback);
             
             if (currentTime >= 21) {
-                // 工作日结束，显示结算窗口
-                endDay();
+                // 工作日结束，播放客人出场动画后再显示结算窗口
+                
+                // 先播放客人出场动画，速度加快一倍
+                customerContainer.style.transition = 'transform 0.4s ease-in-out'; // 原来是0.8s
+                customerContainer.classList.add('slide-out');
+                console.log('播放最后一个客人的出场动画（加速版）');
+                
+                // 等待出场动画完成后再显示结算窗口，时间也减半
+                setTimeout(() => {
+                    // 客人已完全离场，显示结算窗口
+                    console.log('客人出场动画完成，显示结算窗口');
+                    customerContainer.classList.remove('slide-out');
+                    endDay();
+                    // 恢复正常过渡速度
+                    customerContainer.style.transition = 'transform 0.8s ease-in-out';
+                }, 400); // 与出场动画时间匹配，原来是800ms
             } else if (gameActive) {
+                // 设置更快的客人出场动画
+                customerContainer.style.transition = 'transform 0.4s ease-in-out'; // 原来是0.8s
                 generateNewCustomer();
+                // 在generateNewCustomer中的延迟后恢复正常过渡速度
+                setTimeout(() => {
+                    customerContainer.style.transition = 'transform 0.8s ease-in-out';
+                }, 800);
             } else {
                 // 如果游戏不再活跃，确保重置动画状态
                 isAnimating = false;
             }
-        }, 1000);
+        }, 1500); // 延长为1.5秒，原来是1秒
     }
     
     // 更新时间显示
@@ -778,6 +798,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 重置游戏数据开始新的一天
     function resetGame() {
+        // 避免在动画过程中重复调用
+        if (isAnimating || !gameActive) return;
+        
         // 重置游戏状态
         currentTime = 12;
         satisfiedCount = 0;
@@ -786,11 +809,26 @@ document.addEventListener('DOMContentLoaded', () => {
         timeDisplay.classList.remove('time-changing');
         updateTimeDisplay();
         
+        // 先确保客人在屏幕外且不可见，防止在新游戏开始时闪现
+        customerContainer.style.transition = 'none'; // 禁用过渡动画
+        customerContainer.style.transform = 'translateX(100%)'; // 放到屏幕右侧
+        customerContainer.style.opacity = '0'; // 设为不可见
+        
+        // 强制浏览器立即应用这些更改，避免视觉上的闪烁
+        void customerContainer.offsetWidth; // 强制重绘
+        console.log('重置游戏: 已将客人放置在屏幕外且设为不可见');
+        
         // 隐藏结算窗口
         endDayModal.classList.add('hidden');
         
+        // 确保所有UI元素隐藏
+        hideUIElement(customerRequest);
+        hideUIElement(customerFeedback);
+        hideUIElement(hairSelection);
+        hideUIElement(gameControls);
+        
         // 启动新一轮游戏
-        initCustomer();
+        initGame();
     }
     
     // 获取随机发型索引（确保与当前不同）
@@ -853,6 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 播放客人出场动画
         customerContainer.classList.add('slide-out');
         
+        // 等待出场动画完成，时间减半为0.4秒
         setTimeout(() => {
             // 随机选择新发型
             currentHairIndex = getRandomHairIndex();
@@ -863,72 +902,113 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayedHairIndex = 0;
                 selectedHairIndex = 0;
             }
-            // 否则保留上一次客人的选择
             
-            updateHair();
-            updateDisplayedHair(); // 更新显示的发型
-            
-            // 生成新的客人需求
-            currentRequest = generateRandomRequest();
-            requestText.textContent = currentRequest.text;
-            
-            // 将客人移到屏幕右侧准备入场
+            // 先将客人移出屏幕并且隐藏，确保完全离开视线
             customerContainer.classList.remove('slide-out');
-            customerContainer.style.transform = 'translateX(100%)';
+            customerContainer.style.transform = 'translateX(100%)'; // 放到屏幕右侧
+            customerContainer.style.transition = 'none'; // 暂时禁用过渡效果
             
-            // 检查是否存在可用的解决方案
-            const hasSolution = checkForPossibleSolution();
-            if (!hasSolution) {
-                console.log('警告：当前需求没有可行解决方案，重新生成需求');
-                currentRequest = generateRandomRequest();
-                requestText.textContent = currentRequest.text;
-            }
-            
+            // 确保DOM更新
             setTimeout(() => {
-                // 播放入场动画
-                customerContainer.classList.add('slide-in');
+                // 预加载新客人的发型图片
+                const currentHairStyle = hairStyles[currentHairIndex];
+                const hairImageSrc = currentHairStyle.src;
                 
-                // 动画结束后显示对话气泡
-                setTimeout(() => {
-                    // 客人入场动画结束
-                    customerContainer.classList.remove('slide-in');
-                    customerContainer.style.transform = '';
+                // 创建新的Image对象进行预加载
+                const hairPreload = new Image();
+                hairPreload.src = hairImageSrc;
+                
+                // 等待发型图片加载完成
+                const loadHairImage = new Promise((resolve) => {
+                    hairPreload.onload = () => {
+                        console.log('新客人发型图片预加载完成');
+                        resolve();
+                    };
                     
-                    // 显示对话气泡，添加入场动画
-                    showUIElement(customerRequest);
-                    customerRequest.classList.add('bubble-in');
+                    // 如果图片已经加载（缓存）
+                    if (hairPreload.complete) {
+                        console.log('新客人发型图片已在缓存中');
+                        resolve();
+                    }
+                });
+                
+                // 更新发型和相关设置
+                loadHairImage.then(() => {
+                    console.log('更新新客人发型显示');
                     
-                    // 对话气泡动画结束后显示思考气泡和开剪按钮
+                    // 更新发型显示
+                    updateHair();
+                    updateDisplayedHair(); // 更新显示的发型
+                    
+                    // 生成新的客人需求
+                    currentRequest = generateRandomRequest();
+                    requestText.textContent = currentRequest.text;
+                    
+                    // 检查是否存在可用的解决方案
+                    const hasSolution = checkForPossibleSolution();
+                    if (!hasSolution) {
+                        console.log('警告：当前需求没有可行解决方案，重新生成需求');
+                        currentRequest = generateRandomRequest();
+                        requestText.textContent = currentRequest.text;
+                    }
+                    
+                    // 恢复过渡效果，准备开始入场动画
+                    customerContainer.style.transition = 'transform 0.8s ease-in-out, opacity 0.3s ease';
+                    
                     setTimeout(() => {
-                        // 显示思考气泡和开剪按钮
-                        showUIElement(hairSelection);
-                        showUIElement(gameControls);
+                        // 播放入场动画
+                        console.log('新客人开始入场动画');
+                        customerContainer.classList.add('slide-in');
                         
-                        // 使用淡入效果
-                        hairSelection.style.opacity = '0';
-                        gameControls.style.opacity = '0';
-                        
+                        // 动画结束后显示对话气泡
                         setTimeout(() => {
-                            hairSelection.style.opacity = '1';
-                            gameControls.style.opacity = '1';
-                            // 为思考气泡添加呼吸动画效果
-                            thoughtBubble.classList.add('thought-bubble-breathing');
+                            // 客人入场动画结束，保持在屏幕内的位置
+                            customerContainer.classList.remove('slide-in');
+                            // 明确设置transform，确保客人保持在屏幕内
+                            customerContainer.style.transform = 'translateX(0)';
+                            console.log('客人入场动画完成，设置为屏幕中间位置');
                             
-                            // 确保开剪按钮显示
-                            gameControls.classList.remove('hidden');
-                            gameControls.style.display = 'flex';
-                            cutHairBtn.style.display = 'block';
+                            // 显示对话气泡，添加入场动画
+                            showUIElement(customerRequest);
+                            customerRequest.classList.add('bubble-in');
                             
-                            console.log('按钮显示完成后状态:', getComputedStyle(cutHairBtn).display);
-                            console.log('控制容器显示后状态:', getComputedStyle(gameControls).display);
-                            
-                            // 重置动画状态
-                            isAnimating = false;
-                        }, 50);
-                    }, 500); // 对话气泡动画时间
-                }, 800); // 客人入场动画时间
-            }, 50);
-        }, 800);
+                            // 对话气泡动画结束后显示思考气泡和开剪按钮
+                            setTimeout(() => {
+                                // 显示思考气泡和开剪按钮
+                                showUIElement(hairSelection);
+                                showUIElement(gameControls);
+                                
+                                // 可以为思考气泡和按钮添加淡入效果
+                                hairSelection.style.opacity = '0';
+                                gameControls.style.opacity = '0';
+                                
+                                // 使用淡入动画
+                                hairSelection.style.transition = 'opacity 0.5s ease';
+                                gameControls.style.transition = 'opacity 0.5s ease';
+                                
+                                setTimeout(() => {
+                                    hairSelection.style.opacity = '1';
+                                    gameControls.style.opacity = '1';
+                                    // 为思考气泡添加呼吸动画效果
+                                    thoughtBubble.classList.add('thought-bubble-breathing');
+                                    
+                                    // 确保开剪按钮显示
+                                    gameControls.classList.remove('hidden');
+                                    gameControls.style.display = 'flex';
+                                    cutHairBtn.style.display = 'block';
+                                    
+                                    console.log('按钮显示完成后状态:', getComputedStyle(cutHairBtn).display);
+                                    console.log('控制容器显示后状态:', getComputedStyle(gameControls).display);
+                                    
+                                    // 重置动画状态
+                                    isAnimating = false;
+                                }, 50);
+                            }, 500); // 对话气泡动画时间
+                        }, 800); // 客人入场动画时间
+                    }, 100);
+                });
+            }, 50); // 小延迟确保DOM更新
+        }, 400); // 客人出场动画时间，从800ms改为400ms
     }
     
     // 检查是否存在满足当前需求的发型解决方案
@@ -986,8 +1066,21 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`隐藏元素: ${element.id || element.className}`);
     }
     
+    // 初始化发型选择事件
+    function initHairstyleSelection() {
+        prevHairBtn.addEventListener('click', prevHair);
+        nextHairBtn.addEventListener('click', nextHair);
+        
+        // 初始化显示的发型
+        updateDisplayedHair();
+    }
+    
     // 初始化客人入场
     function initCustomer() {
+        // 避免在动画过程中重复调用
+        if (isAnimating || !gameActive) return;
+        isAnimating = true;
+        
         // 确保初始隐藏UI元素
         hideUIElement(customerRequest);
         hideUIElement(customerFeedback);
@@ -999,90 +1092,128 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 随机选择初始发型
         currentHairIndex = Math.floor(Math.random() * hairStyles.length);
-        updateHair();
         
-        // 初始化发型选择器，但如果已经有选择则保留
-        if (selectedHairIndex === null) {
-            displayedHairIndex = 0;
-            selectedHairIndex = 0;
-        }
-        // 否则保留之前的选择
-        
-        updateDisplayedHair(); // 更新显示的发型
-        
-        // 生成初始客人需求
-        currentRequest = generateRandomRequest();
-        
-        // 确保有可行的解决方案
-        const hasSolution = checkForPossibleSolution();
-        if (!hasSolution) {
-            console.log('初始化: 当前需求没有可行解决方案，重新生成需求');
-            currentRequest = generateRandomRequest();
-        }
-        
-        requestText.textContent = currentRequest.text;
-        
-        // 将客人放在屏幕外准备入场
+        // 确保客人在屏幕外并禁用过渡动画，以便立即定位
+        customerContainer.style.opacity = '0'; // 先隐藏客人，避免闪现
+        customerContainer.style.transition = 'none';
         customerContainer.style.transform = 'translateX(100%)';
         
-        // 短暂延迟后开始入场动画
-        setTimeout(() => {
-            // 客人入场
-            customerContainer.classList.add('slide-in');
-            
-            // 动画结束后显示对话气泡
-            setTimeout(() => {
-                // 客人入场动画结束
-                customerContainer.classList.remove('slide-in');
-                customerContainer.style.transform = '';
-                
-                // 显示对话气泡，添加入场动画
-                showUIElement(customerRequest);
-                customerRequest.classList.add('bubble-in');
-                
-                // 对话气泡动画结束后显示思考气泡和开剪按钮
-                setTimeout(() => {
-                    // 显示思考气泡和开剪按钮
-                    showUIElement(hairSelection);
-                    showUIElement(gameControls);
-                    
-                    // 可以为思考气泡和按钮添加淡入效果
-                    hairSelection.style.opacity = '0';
-                    gameControls.style.opacity = '0';
-                    
-                    // 使用淡入动画
-                    hairSelection.style.transition = 'opacity 0.5s ease';
-                    gameControls.style.transition = 'opacity 0.5s ease';
-                    
-                    setTimeout(() => {
-                        hairSelection.style.opacity = '1';
-                        gameControls.style.opacity = '1';
-                        // 为思考气泡添加呼吸动画效果
-                        thoughtBubble.classList.add('thought-bubble-breathing');
-                        
-                        // 确保开剪按钮显示
-                        gameControls.classList.remove('hidden');
-                        gameControls.style.display = 'flex';
-                        cutHairBtn.style.display = 'block';
-                        
-                        console.log('按钮显示完成后状态:', getComputedStyle(cutHairBtn).display);
-                        console.log('控制容器显示后状态:', getComputedStyle(gameControls).display);
-                        
-                        // 重置动画状态
-                        isAnimating = false;
-                    }, 50);
-                }, 500); // 对话气泡动画时间
-            }, 800); // 客人入场动画时间
-        }, 500); // 初始延迟
-    }
-    
-    // 初始化发型选择事件
-    function initHairstyleSelection() {
-        prevHairBtn.addEventListener('click', prevHair);
-        nextHairBtn.addEventListener('click', nextHair);
+        // 这次强制立即刷新DOM布局，确保客人确实在屏幕外
+        void customerContainer.offsetWidth; // 强制重绘
+        console.log('确保第一个客人在屏幕外且不可见');
         
-        // 初始化显示的发型
-        updateDisplayedHair();
+        // 预加载客人和发型图片
+        const currentHairStyle = hairStyles[currentHairIndex];
+        const hairImageSrc = currentHairStyle.src;
+        
+        // 创建新的Image对象进行预加载
+        const hairPreload = new Image();
+        hairPreload.src = hairImageSrc;
+        
+        // 等待发型图片加载完成
+        const loadHairImage = new Promise((resolve) => {
+            hairPreload.onload = () => {
+                console.log('发型图片预加载完成');
+                resolve();
+            };
+            
+            // 如果图片已经加载（缓存）
+            if (hairPreload.complete) {
+                console.log('发型图片已在缓存中');
+                resolve();
+            }
+        });
+        
+        // 更新发型和相关设置
+        loadHairImage.then(() => {
+            console.log('更新发型显示');
+            
+            // 应用发型更新
+            updateHair();
+            
+            // 初始化发型选择器，但如果已经有选择则保留
+            if (selectedHairIndex === null) {
+                displayedHairIndex = 0;
+                selectedHairIndex = 0;
+            }
+            
+            updateDisplayedHair(); // 更新显示的发型
+            
+            // 生成初始客人需求
+            currentRequest = generateRandomRequest();
+            
+            // 确保有可行的解决方案
+            const hasSolution = checkForPossibleSolution();
+            if (!hasSolution) {
+                console.log('初始化: 当前需求没有可行解决方案，重新生成需求');
+                currentRequest = generateRandomRequest();
+            }
+            
+            requestText.textContent = currentRequest.text;
+            
+            // 恢复过渡效果，准备入场动画
+            customerContainer.style.transition = 'transform 0.8s ease-in-out, opacity 0.3s ease';
+            
+            // 短暂延迟后再设置可见性，避免闪现
+            setTimeout(() => {
+                // 先让客人变得可见但保持在屏幕外
+                customerContainer.style.opacity = '1';
+                console.log('客人现在可见，准备入场动画');
+                
+                // 再次短暂延迟，确保可见性已被应用
+                setTimeout(() => {
+                    console.log('客人开始入场动画');
+                    // 客人入场
+                    customerContainer.classList.add('slide-in');
+                    
+                    // 动画结束后显示对话气泡
+                    setTimeout(() => {
+                        // 客人入场动画结束，保持在屏幕内的位置
+                        customerContainer.classList.remove('slide-in');
+                        // 明确设置transform，确保客人保持在屏幕内
+                        customerContainer.style.transform = 'translateX(0)';
+                        console.log('客人入场动画完成，设置为屏幕中间位置');
+                        
+                        // 显示对话气泡，添加入场动画
+                        showUIElement(customerRequest);
+                        customerRequest.classList.add('bubble-in');
+                        
+                        // 对话气泡动画结束后显示思考气泡和开剪按钮
+                        setTimeout(() => {
+                            // 显示思考气泡和开剪按钮
+                            showUIElement(hairSelection);
+                            showUIElement(gameControls);
+                            
+                            // 可以为思考气泡和按钮添加淡入效果
+                            hairSelection.style.opacity = '0';
+                            gameControls.style.opacity = '0';
+                            
+                            // 使用淡入动画
+                            hairSelection.style.transition = 'opacity 0.5s ease';
+                            gameControls.style.transition = 'opacity 0.5s ease';
+                            
+                            setTimeout(() => {
+                                hairSelection.style.opacity = '1';
+                                gameControls.style.opacity = '1';
+                                // 为思考气泡添加呼吸动画效果
+                                thoughtBubble.classList.add('thought-bubble-breathing');
+                                
+                                // 确保开剪按钮显示
+                                gameControls.classList.remove('hidden');
+                                gameControls.style.display = 'flex';
+                                cutHairBtn.style.display = 'block';
+                                
+                                console.log('按钮显示完成后状态:', getComputedStyle(cutHairBtn).display);
+                                console.log('控制容器显示后状态:', getComputedStyle(gameControls).display);
+                                
+                                // 重置动画状态
+                                isAnimating = false;
+                            }, 50);
+                        }, 500); // 对话气泡动画时间
+                    }, 800); // 客人入场动画时间
+                }, 50); // 短暂延迟确保可见性已被应用
+            }, 100); // 短暂延迟再设置可见性
+        });
     }
     
     // 事件监听
@@ -1107,11 +1238,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let assetsLoaded = 0;
             const totalAssets = gameAssets.length;
+            let gameInitialized = false; // 添加标志防止重复初始化
             
             // 检查资源是否已加载
             const checkAssets = () => {
                 assetsLoaded++;
-                if (assetsLoaded >= totalAssets) {
+                // 只有当所有资源都加载完成且游戏尚未初始化时才初始化游戏
+                if (assetsLoaded >= totalAssets && !gameInitialized) {
+                    gameInitialized = true; // 设置标志防止重复初始化
                     // 所有资源加载完成，再隐藏开始页面显示游戏
                     gameContainer.style.opacity = '1';
                     startPage.classList.add('hidden');
@@ -1181,9 +1315,68 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('游戏初始化后开剪按钮状态:', getComputedStyle(cutHairBtn).display);
         console.log('游戏初始化后控制容器状态:', getComputedStyle(gameControls).display);
         
+        // 先确保客人在屏幕外
+        customerContainer.style.transform = 'translateX(100%)';
+        customerContainer.style.opacity = '0'; // 初始设为不可见
+        console.log('游戏初始化时将客人隐藏并放置在屏幕外');
+        
+        // 调整游戏大小
         resizeGame();
+        
+        // 初始化发型选择事件（确保只执行一次）
         initHairstyleSelection();
-        initCustomer();
+        
+        // 不立即开始第一个客人入场，而是检查图片是否已加载
+        console.log('等待客人和发型图片加载完成...');
+        
+        // 等待客人和发型图片完全加载后再开始第一个客人入场
+        const customerImage = new Image();
+        customerImage.src = customer.src;
+        
+        const hairImage = new Image();
+        hairImage.src = hair.src;
+        
+        let customerLoaded = false;
+        let hairLoaded = false;
+        
+        // 检查图片加载状态
+        const checkImagesLoaded = () => {
+            if (customerLoaded && hairLoaded) {
+                console.log('客人和发型图片加载完成，开始第一个客人入场');
+                // 不再在这里设置客人可见性，而是完全由initCustomer函数处理
+                
+                // 短暂延迟确保DOM更新
+                setTimeout(() => {
+                    initCustomer();
+                }, 100);
+            }
+        };
+        
+        // 设置加载事件处理器
+        customerImage.onload = () => {
+            console.log('客人图片加载完成');
+            customerLoaded = true;
+            checkImagesLoaded();
+        };
+        
+        hairImage.onload = () => {
+            console.log('发型图片加载完成');
+            hairLoaded = true;
+            checkImagesLoaded();
+        };
+        
+        // 图片已经加载完成的情况（缓存）
+        if (customerImage.complete) {
+            console.log('客人图片已经加载完成');
+            customerLoaded = true;
+            checkImagesLoaded();
+        }
+        
+        if (hairImage.complete) {
+            console.log('发型图片已经加载完成');
+            hairLoaded = true;
+            checkImagesLoaded();
+        }
     }
     
     // 不自动启动游戏，让用户点击首页开始按钮启动
