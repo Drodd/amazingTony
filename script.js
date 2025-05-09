@@ -241,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevHairBtn = document.getElementById('prev-hair');
     const nextHairBtn = document.getElementById('next-hair');
     const displayedHair = document.getElementById('displayed-hair');
+    const hairLoading = document.getElementById('hair-loading');
     
     // 获取思考气泡元素
     const thoughtBubble = document.querySelector('.thought-bubble');
@@ -410,18 +411,49 @@ document.addEventListener('DOMContentLoaded', () => {
     // 更新思考气泡中显示的发型
     function updateDisplayedHair() {
         const currentHair = hairStyles[displayedHairIndex];
+        
+        // 先显示loading状态
+        hairLoading.classList.remove('hidden');
+        
+        // 设置新图片加载完成时的回调
+        displayedHair.onload = function() {
+            // 加载完成后隐藏loading状态
+            hairLoading.classList.add('hidden');
+            // 清除onload事件，避免内存泄漏
+            displayedHair.onload = null;
+        };
+        
+        // 设置加载错误处理
+        displayedHair.onerror = function() {
+            // 加载失败也隐藏loading状态
+            hairLoading.classList.add('hidden');
+            console.log('发型图片加载失败:', currentHair.src);
+            // 清除onerror事件，避免内存泄漏
+            displayedHair.onerror = null;
+        };
+        
+        // 更改图片源，会触发加载
         displayedHair.src = currentHair.src;
         selectedHairIndex = displayedHairIndex; // 设置选中的发型
+        
+        // 打印当前选择的发型信息（调试用）
+        console.log('当前选择的发型:', displayedHairIndex, '当前需求:', currentRequest?.type);
     }
     
     // 切换到前一个发型
     function prevHair() {
+        // 避免连续快速点击
+        if (!hairLoading.classList.contains('hidden')) return;
+        
         displayedHairIndex = (displayedHairIndex - 1 + hairStyles.length) % hairStyles.length;
         updateDisplayedHair();
     }
     
     // 切换到后一个发型
     function nextHair() {
+        // 避免连续快速点击
+        if (!hairLoading.classList.contains('hidden')) return;
+        
         displayedHairIndex = (displayedHairIndex + 1) % hairStyles.length;
         updateDisplayedHair();
     }
@@ -433,8 +465,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 创建可用需求类型数组
         let availableRequests = [...requestTypes];
         
+        console.log('生成新需求，当前发型索引:', currentHairIndex);
+        console.log('当前发型信息:', '长度:', currentHair.length, '风格:', currentHair.style);
+        
         // 如果当前发型长度为1(最短)，移除"剪短一点"和"修剪一下"的需求
         if (currentHair.length === 1) {
+            console.log('当前已是最短发型，移除剪短和修剪需求');
             availableRequests = availableRequests.filter(request => 
                 request.type !== 'cut_short' && request.type !== 'trim'
             );
@@ -444,6 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 若当前发型已经是hair1、2、7中的一个，则不能选择"与众不同"需求
         if ([0, 1, 6].includes(currentHairIndex)) {
+            console.log('当前已是特别款式发型(1,2,7)，移除与众不同需求');
             availableRequests = availableRequests.filter(request => 
                 request.type !== 'unique'
             );
@@ -451,6 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 若当前发型已经是hair3、4、5、6、8中的一个，则不能选择"低调一点"需求
         if ([2, 3, 4, 5, 7].includes(currentHairIndex)) {
+            console.log('当前已是普通款式发型(3,4,5,6,8)，移除低调需求');
             availableRequests = availableRequests.filter(request => 
                 request.type !== 'low_key'
             );
@@ -458,13 +496,18 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 若当前发型已经是hair4、5、6、7中的一个，则不能选择"好打理"需求
         if ([3, 4, 5, 6].includes(currentHairIndex)) {
+            console.log('当前已是易打理发型(4,5,6,7)，移除好打理需求');
             availableRequests = availableRequests.filter(request => 
                 request.type !== 'easy_care'
             );
         }
         
+        // 列出当前可用需求类型
+        console.log('可用的需求类型:', availableRequests.map(req => req.type));
+        
         // 如果没有可用需求，默认使用"彻底改变"
         if (availableRequests.length === 0) {
+            console.log('没有可用需求，使用默认需求: 彻底改变');
             const defaultRequest = requestTypes.find(req => req.type === 'completely_change');
             const randomText = defaultRequest.texts[Math.floor(Math.random() * defaultRequest.texts.length)];
             return { type: 'completely_change', text: randomText };
@@ -474,6 +517,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedRequestType = availableRequests[Math.floor(Math.random() * availableRequests.length)];
         // 从该类型的多个对白中随机选择一个
         const randomText = selectedRequestType.texts[Math.floor(Math.random() * selectedRequestType.texts.length)];
+        
+        console.log('最终选择的需求类型:', selectedRequestType.type);
         
         return { type: selectedRequestType.type, text: randomText };
     }
@@ -485,30 +530,52 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentHair = hairStyles[currentHairIndex];
         const selectedHair = hairStyles[selectedHairIndex];
         
+        // 打印调试信息
+        console.log('验证发型选择:');
+        console.log('当前发型索引:', currentHairIndex, '长度:', currentHair.length, '风格:', currentHair.style);
+        console.log('选择发型索引:', selectedHairIndex, '长度:', selectedHair.length, '风格:', selectedHair.style);
+        console.log('当前请求类型:', currentRequest.type);
+        
         switch(currentRequest.type) {
             case 'cut_short':
+                console.log('剪短一点 - 需要长度为1:', selectedHair.length === 1);
                 return selectedHair.length === 1; // 剪短一点：长度必须为1
                 
             case 'trim':
                 // 修剪一下：长度必须小于当前发型，风格必须相同
+                console.log('修剪一下 - 需要长度小于当前且风格相同:', 
+                    (selectedHair.length < currentHair.length), 
+                    (selectedHair.style === currentHair.style));
                 return selectedHair.length < currentHair.length && 
                        selectedHair.style === currentHair.style;
                 
             case 'unique':
                 // 与众不同：选择hair1、2、7，但不能与客人当前发型相同
+                console.log('与众不同 - 需要选择发型1,2,7且不同于当前:', 
+                    [0, 1, 6].includes(selectedHairIndex), 
+                    selectedHairIndex !== currentHairIndex);
                 return [0, 1, 6].includes(selectedHairIndex) && selectedHairIndex !== currentHairIndex;
                 
             case 'low_key':
                 // 低调一点：选择hair3、4、5、6、8，但不能与客人当前发型相同
+                console.log('低调一点 - 需要选择发型3,4,5,6,8且不同于当前:', 
+                    [2, 3, 4, 5, 7].includes(selectedHairIndex), 
+                    selectedHairIndex !== currentHairIndex);
                 return [2, 3, 4, 5, 7].includes(selectedHairIndex) && selectedHairIndex !== currentHairIndex;
                 
             case 'completely_change':
                 // 彻底改变：与客人当前发型的长度、风格都不同
+                console.log('彻底改变 - 需要长度和风格都不同:', 
+                    (selectedHair.length !== currentHair.length), 
+                    (selectedHair.style !== currentHair.style));
                 return selectedHair.length !== currentHair.length && 
                        selectedHair.style !== currentHair.style;
                 
             case 'easy_care':
                 // 好打理：选择hair4、5、6、7，但不能与客人当前发型相同
+                console.log('好打理 - 需要选择发型4,5,6,7且不同于当前:', 
+                    [3, 4, 5, 6].includes(selectedHairIndex), 
+                    selectedHairIndex !== currentHairIndex);
                 return [3, 4, 5, 6].includes(selectedHairIndex) && selectedHairIndex !== currentHairIndex;
                 
             default:
@@ -525,7 +592,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        // 在更改发型前先验证选择
         const isValid = validateHairSelection();
+        console.log('验证结果:', isValid, '请求类型:', currentRequest.type);
         
         // 设置动画状态
         isAnimating = true;
@@ -538,9 +607,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // 移除思考气泡的呼吸动画
         thoughtBubble.classList.remove('thought-bubble-breathing');
         
+        // 开始时间动画，与理发师动画同步开始
+        const oldTime = currentTime;
+        currentTime++;
+        
         // 显示遮罩图片并添加动画
         console.log('显示遮罩图片'); // 调试日志
         animateMask();
+        
+        // 同时开始时间流逝动画
+        animateTimeChange(oldTime, currentTime, 2000); // 动画持续2秒，与理发过程同步
         
         // 延迟更换发型，使遮罩动画有显示时间
         setTimeout(() => {
@@ -555,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 延迟显示客人反馈，等待遮罩淡出
             setTimeout(() => {
                 console.log('显示反馈'); // 调试日志
-                // 显示客人反馈
+                // 显示客人反馈（使用之前保存的验证结果）
                 showCustomerFeedback(isValid);
                 
                 // 完成剪头发流程，重置动画状态
@@ -601,10 +677,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 500);
         }
         
-        // 更新游戏时间
-        currentTime++;
-        updateTimeDisplay();
-        
         // 1秒后隐藏反馈，生成新客人或结束游戏
         setTimeout(() => {
             customerFeedback.classList.remove('bubble-in');
@@ -625,6 +697,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // 更新时间显示
     function updateTimeDisplay() {
         timeDisplay.textContent = `${currentTime}:00`;
+    }
+    
+    // 时间流逝的动画效果
+    function animateTimeChange(fromHour, toHour, duration = 1500) {
+        let currentMinute = 0;
+        let currentDisplayHour = fromHour;
+        const totalFrames = Math.floor(duration / 50); // 根据持续时间计算总帧数
+        let frame = 0;
+        
+        // 启用时间元素的过渡效果
+        timeDisplay.classList.add('time-changing');
+        
+        const timeInterval = setInterval(() => {
+            frame++;
+            
+            // 计算当前应显示的分钟数
+            currentMinute = Math.floor((frame / totalFrames) * 60);
+            
+            // 当分钟数达到60时，小时数进位
+            if (currentMinute >= 60) {
+                currentMinute = 0;
+                currentDisplayHour = toHour;
+            }
+            
+            // 更新时间显示
+            timeDisplay.textContent = `${currentDisplayHour}:${currentMinute.toString().padStart(2, '0')}`;
+            
+            // 动画结束
+            if (frame >= totalFrames) {
+                clearInterval(timeInterval);
+                timeDisplay.textContent = `${toHour}:00`;
+                
+                // 在理发师动画结束时移除动画效果
+                setTimeout(() => {
+                    timeDisplay.classList.remove('time-changing');
+                }, 500);
+            }
+        }, 50); // 每50毫秒更新一次
     }
     
     // 结束工作日
@@ -671,6 +781,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 重置游戏状态
         currentTime = 12;
         satisfiedCount = 0;
+        
+        // 更新时间显示（确保格式统一）
+        timeDisplay.classList.remove('time-changing');
         updateTimeDisplay();
         
         // 隐藏结算窗口
@@ -743,7 +856,17 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             // 随机选择新发型
             currentHairIndex = getRandomHairIndex();
+            
+            // 保持发型选择器与上一次的选择一致，而不是重置为0
+            // 如果selectedHairIndex为null，则初始化为0
+            if (selectedHairIndex === null) {
+                displayedHairIndex = 0;
+                selectedHairIndex = 0;
+            }
+            // 否则保留上一次客人的选择
+            
             updateHair();
+            updateDisplayedHair(); // 更新显示的发型
             
             // 生成新的客人需求
             currentRequest = generateRandomRequest();
@@ -752,6 +875,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // 将客人移到屏幕右侧准备入场
             customerContainer.classList.remove('slide-out');
             customerContainer.style.transform = 'translateX(100%)';
+            
+            // 检查是否存在可用的解决方案
+            const hasSolution = checkForPossibleSolution();
+            if (!hasSolution) {
+                console.log('警告：当前需求没有可行解决方案，重新生成需求');
+                currentRequest = generateRandomRequest();
+                requestText.textContent = currentRequest.text;
+            }
             
             setTimeout(() => {
                 // 播放入场动画
@@ -800,6 +931,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 800);
     }
     
+    // 检查是否存在满足当前需求的发型解决方案
+    function checkForPossibleSolution() {
+        // 遍历所有发型，检查是否有至少一个能满足当前需求
+        const currentHair = hairStyles[currentHairIndex];
+        
+        for (let i = 0; i < hairStyles.length; i++) {
+            if (i === currentHairIndex) continue; // 跳过当前发型
+            
+            const testHair = hairStyles[i];
+            
+            switch(currentRequest.type) {
+                case 'cut_short':
+                    if (testHair.length === 1) return true;
+                    break;
+                    
+                case 'trim':
+                    if (testHair.length < currentHair.length && 
+                        testHair.style === currentHair.style) return true;
+                    break;
+                    
+                case 'unique':
+                    if ([0, 1, 6].includes(i)) return true;
+                    break;
+                    
+                case 'low_key':
+                    if ([2, 3, 4, 5, 7].includes(i)) return true;
+                    break;
+                    
+                case 'completely_change':
+                    if (testHair.length !== currentHair.length && 
+                        testHair.style !== currentHair.style) return true;
+                    break;
+                    
+                case 'easy_care':
+                    if ([3, 4, 5, 6].includes(i)) return true;
+                    break;
+            }
+        }
+        
+        // 如果没有发型满足需求，返回false
+        return false;
+    }
+    
     // 显示UI元素的函数
     function showUIElement(element) {
         element.classList.remove('hidden');
@@ -827,8 +1001,25 @@ document.addEventListener('DOMContentLoaded', () => {
         currentHairIndex = Math.floor(Math.random() * hairStyles.length);
         updateHair();
         
+        // 初始化发型选择器，但如果已经有选择则保留
+        if (selectedHairIndex === null) {
+            displayedHairIndex = 0;
+            selectedHairIndex = 0;
+        }
+        // 否则保留之前的选择
+        
+        updateDisplayedHair(); // 更新显示的发型
+        
         // 生成初始客人需求
         currentRequest = generateRandomRequest();
+        
+        // 确保有可行的解决方案
+        const hasSolution = checkForPossibleSolution();
+        if (!hasSolution) {
+            console.log('初始化: 当前需求没有可行解决方案，重新生成需求');
+            currentRequest = generateRandomRequest();
+        }
+        
         requestText.textContent = currentRequest.text;
         
         // 将客人放在屏幕外准备入场
@@ -958,7 +1149,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 重置游戏状态
         currentTime = 12;
         satisfiedCount = 0;
+        
+        // 更新时间显示（确保格式统一）
+        timeDisplay.classList.remove('time-changing');
         updateTimeDisplay();
+        
         gameActive = true;
         
         // 创建遮罩图片元素
@@ -992,4 +1187,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // 不自动启动游戏，让用户点击首页开始按钮启动
-}); 
+});

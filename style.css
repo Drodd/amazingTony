@@ -1,3 +1,11 @@
+/* 禁用整个页面的选中状态 */
+* {
+    -webkit-user-select: none;  /* Safari */
+    -ms-user-select: none;      /* IE 10+ */
+    -moz-user-select: none;     /* Firefox */
+    user-select: none;          /* 标准语法 */
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -278,12 +286,41 @@ body {
     justify-content: center;
     background-color: rgba(255, 255, 255, 0);
     border-radius: 10px;
+    position: relative;
 }
 
 #displayed-hair {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+}
+
+/* 发型加载状态 */
+.hair-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+}
+
+.hair-loading .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(76, 34, 34, 0.2);
+    border-top: 4px solid #4c2222;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .hair-nav-button {
@@ -505,6 +542,31 @@ body {
 #time-display {
     font-size: 48px;
     color: #4c2222;
+    transition: transform 0.2s ease, color 0.3s ease;
+    position: relative;
+    display: inline-block;
+}
+
+/* 时间变化时的样式 */
+.time-changing {
+    color: #e74c3c !important;
+    animation: timeChangePulse 2s ease-in-out;
+    text-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
+}
+
+/* 配合理发师剪头发动作的时间动画效果 */
+@keyframes timeChangePulse {
+    0% { transform: scale(1); }
+    10% { transform: scale(1.05); }
+    20% { transform: scale(1); }
+    30% { transform: scale(1.05); }
+    40% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    60% { transform: scale(1); }
+    70% { transform: scale(1.05); }
+    80% { transform: scale(1); }
+    90% { transform: scale(1.05); }
+    100% { transform: scale(1); }
 }
 
 .end-time {

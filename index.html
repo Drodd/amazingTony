@@ -6,7 +6,7 @@
     <title>剪刀手托尼</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body style="-webkit-tap-highlight-color: transparent;">
     <!-- 首页 -->
     <div id="start-page" class="full-page">
         <div class="start-content">
@@ -80,6 +80,9 @@
                         <button id="prev-hair" class="hair-nav-button">&lt;</button>
                         <div class="displayed-hair-container">
                             <img id="displayed-hair" src="img/img_hair1.png" alt="发型选择">
+                            <div id="hair-loading" class="hair-loading hidden">
+                                <div class="loading-spinner"></div>
+                            </div>
                         </div>
                         <button id="next-hair" class="hair-nav-button">&gt;</button>
                     </div>
